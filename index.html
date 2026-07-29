@@ -425,6 +425,12 @@ function buildChart(items) {
 fetchPCCData().then(render).catch(err => {
   document.getElementById('content').innerHTML = '<p style="color:#e53e3e; padding:20px;">Error fetching data: ' + err.message + '</p>';
 });
+
+// Auto-refresh every 4 hours
+setInterval(() => {
+  fetchPCCData().then(render).catch(err => console.error('PCC refresh error:', err));
+  fetchStuckData().then(renderStuck).catch(err => console.error('Stuck refresh error:', err));
+}, 4 * 60 * 60 * 1000);
 </script>
 
 
