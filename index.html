@@ -274,6 +274,7 @@ function render(groups) {
               <table>
                 <thead><tr><th>#</th><th>Customer Name</th><th>State</th><th>Closed Date</th><th>PCC Duration</th></tr></thead>
                 <tbody>`;
+      items.sort((a, b) => parseInt(a.duration) - parseInt(b.duration));
       items.forEach((item, i) => {
         html += `<tr><td>${i+1}</td><td>${item.name}</td><td>${item.state}</td><td>${item.closedDate}</td><td>${item.duration}</td></tr>`;
       });
@@ -563,6 +564,7 @@ function renderStuck(groups) {
               <table>
                 <thead><tr><th>#</th><th>Customer Name</th><th>Drawing Status</th><th>SEDA Status</th><th>State</th><th>Closed Date</th><th>Duration</th></tr></thead>
                 <tbody>`;
+      items.sort((a, b) => parseInt(a.duration) - parseInt(b.duration));
       items.forEach((item, i) => {
         html += `<tr><td>${i+1}</td><td>${item.name}</td><td>${item.drawingStatus}</td><td>${item.sedaStatus}</td><td>${item.state}</td><td>${item.closedDate}</td><td>${item.duration}</td></tr>`;
       });
