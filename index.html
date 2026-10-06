@@ -175,6 +175,15 @@ const MANUAL_REGION_OVERRIDES = {
   'LIM KIM SWEE': 'Central'
 };
 
+// Duration colour coding: <180 days green, 180-360 yellow, >360 red.
+// Returns a hex colour, or empty string when the day count is unknown.
+function durationColor(days) {
+  if (days === null || days === undefined || isNaN(days)) return '';
+  if (days > 360) return '#e53e3e';   // red
+  if (days >= 180) return '#d69e2e';  // yellow
+  return '#38a169';                   // green
+}
+
 async function fetchPCCData() {
   const query = `{ boards(ids: ${BOARD_ID}) { groups { id title items_page(limit: 500, query_params: {rules: [{column_id: "status91", compare_value: [8], operator: any_of}]}) { items { id name column_values(ids: ["status91", "person", "date4", "numbers8", "area__1", "date"]) { id text } } } } } }`;
 
@@ -210,11 +219,12 @@ function render(groups) {
       totalItems++;
       const drawingReqDate = cols['date'] || '';
       let duration = '—';
+      let durationDays = null;
       if (drawingReqDate) {
         const reqDate = new Date(drawingReqDate);
         const today = new Date();
-        const diffDays = Math.floor((today - reqDate) / (1000 * 60 * 60 * 24));
-        duration = diffDays + ' days';
+        durationDays = Math.floor((today - reqDate) / (1000 * 60 * 60 * 24));
+        duration = durationDays + ' days';
       }
       allItems.push({
         name: item.name,
@@ -224,7 +234,8 @@ function render(groups) {
         state: state,
         region: region,
         fy: g.title,
-        duration: duration
+        duration: duration,
+        durationDays: durationDays
       });
     }
   }
@@ -274,9 +285,11 @@ function render(groups) {
               <table>
                 <thead><tr><th>#</th><th>Customer Name</th><th>State</th><th>Closed Date</th><th>PCC Duration</th></tr></thead>
                 <tbody>`;
-      items.sort((a, b) => parseInt(a.duration) - parseInt(b.duration));
+      items.sort((a, b) => (b.durationDays ?? -1) - (a.durationDays ?? -1));
       items.forEach((item, i) => {
-        html += `<tr><td>${i+1}</td><td>${item.name}</td><td>${item.state}</td><td>${item.closedDate}</td><td>${item.duration}</td></tr>`;
+        const dc = durationColor(item.durationDays);
+        const dStyle = dc ? ` style="color:${dc}; font-weight:600;"` : '';
+        html += `<tr><td>${i+1}</td><td>${item.name}</td><td>${item.state}</td><td>${item.closedDate}</td><td${dStyle}>${item.duration}</td></tr>`;
       });
       html += `</tbody></table></div></div>`;
     }
@@ -502,11 +515,12 @@ function renderStuck(groups) {
       const drawingReqDate = cols['date'] || '';
       const closedDate = cols['date4'] || '';
       let duration = '—';
+      let durationDays = null;
       if (closedDate) {
         const cDate = new Date(closedDate);
         const today = new Date();
-        const diffDays = Math.floor((today - cDate) / (1000 * 60 * 60 * 24));
-        duration = diffDays + ' days';
+        durationDays = Math.floor((today - cDate) / (1000 * 60 * 60 * 24));
+        duration = durationDays + ' days';
       }
       allItems.push({
         name: item.name,
@@ -517,7 +531,8 @@ function renderStuck(groups) {
         state: state,
         region: region,
         fy: g.title,
-        duration: duration
+        duration: duration,
+        durationDays: durationDays
       });
     }
   }
@@ -566,9 +581,11 @@ function renderStuck(groups) {
               <table>
                 <thead><tr><th>#</th><th>Customer Name</th><th>Drawing Status</th><th>SEDA Status</th><th>State</th><th>Closed Date</th><th>Duration</th></tr></thead>
                 <tbody>`;
-      items.sort((a, b) => parseInt(a.duration) - parseInt(b.duration));
+      items.sort((a, b) => (b.durationDays ?? -1) - (a.durationDays ?? -1));
       items.forEach((item, i) => {
-        html += `<tr><td>${i+1}</td><td>${item.name}</td><td>${item.drawingStatus}</td><td>${item.sedaStatus}</td><td>${item.state}</td><td>${item.closedDate}</td><td>${item.duration}</td></tr>`;
+        const dc = durationColor(item.durationDays);
+        const dStyle = dc ? ` style="color:${dc}; font-weight:600;"` : '';
+        html += `<tr><td>${i+1}</td><td>${item.name}</td><td>${item.drawingStatus}</td><td>${item.sedaStatus}</td><td>${item.state}</td><td>${item.closedDate}</td><td${dStyle}>${item.duration}</td></tr>`;
       });
       html += `</tbody></table></div></div>`;
     }
