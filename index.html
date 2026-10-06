@@ -285,7 +285,7 @@ function render(groups) {
               <table>
                 <thead><tr><th>#</th><th>Customer Name</th><th>State</th><th>Closed Date</th><th>PCC Duration</th></tr></thead>
                 <tbody>`;
-      items.sort((a, b) => (b.durationDays ?? -1) - (a.durationDays ?? -1));
+      items.sort((a, b) => (a.durationDays ?? Infinity) - (b.durationDays ?? Infinity));
       items.forEach((item, i) => {
         const dc = durationColor(item.durationDays);
         const dStyle = dc ? ` style="color:${dc}; font-weight:600;"` : '';
@@ -581,7 +581,7 @@ function renderStuck(groups) {
               <table>
                 <thead><tr><th>#</th><th>Customer Name</th><th>Drawing Status</th><th>SEDA Status</th><th>State</th><th>Closed Date</th><th>Duration</th></tr></thead>
                 <tbody>`;
-      items.sort((a, b) => (b.durationDays ?? -1) - (a.durationDays ?? -1));
+      items.sort((a, b) => (a.durationDays ?? Infinity) - (b.durationDays ?? Infinity));
       items.forEach((item, i) => {
         const dc = durationColor(item.durationDays);
         const dStyle = dc ? ` style="color:${dc}; font-weight:600;"` : '';
