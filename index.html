@@ -228,6 +228,14 @@ const SC_REGION_FORCE = {};
   SC_REGION_FORCE[n.trim().toLowerCase()] = 'Northern';
 });
 
+// SCs whose cases are excluded entirely from the dashboard (all sections).
+const SC_EXCLUDE = new Set(
+  ['Kishen Mohan', 'KC Lim'].map(n => n.trim().toLowerCase())
+);
+function isExcludedSC(scName) {
+  return SC_EXCLUDE.has((scName || '').trim().toLowerCase());
+}
+
 // Resolve the display region/team for an item.
 // Interpretation B:
 //  - If the SC is in a Central team list -> that team (overrides state/region).
@@ -289,6 +297,7 @@ function render(groups) {
       item.column_values.forEach(cv => { cols[cv.id] = cv.text; });
       const state = cols['area__1'] || '';
       const sc = cols['person'] || '—';
+      if (isExcludedSC(sc)) continue;   // excluded SCs: skip entirely
       const region = resolveRegion(sc, state, item.name);
       const price = parseFloat(cols['numbers8']) || 0;
       totalValue += price;
@@ -590,6 +599,7 @@ function renderStuck(groups) {
       item.column_values.forEach(cv => { cols[cv.id] = cv.text; });
       const state = cols['area__1'] || '';
       const sc = cols['person'] || '—';
+      if (isExcludedSC(sc)) continue;   // excluded SCs: skip entirely
       const region = resolveRegion(sc, state, item.name);
       const price = parseFloat(cols['numbers8']) || 0;
       totalValue += price;
