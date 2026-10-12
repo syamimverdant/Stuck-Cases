@@ -256,7 +256,7 @@ function resolveRegion(scName, state, itemName) {
   if (stateRegion && stateRegion !== 'Central') return stateRegion;
 
   // 3. Central-by-state (or unknown) but SC not in any list.
-  return 'Unassigned';
+  return 'Unassigned (Central)';
 }
 
 // Duration colour coding: <180 days green, 180-360 yellow, >360 red.
@@ -342,7 +342,7 @@ function render(groups) {
   `;
 
   // Render by Region -> SC
-  const regionOrder = ['Northern', 'Central 1', 'Central 2', 'Southern', 'East Coast', 'East Malaysia', 'Unassigned'];
+  const regionOrder = ['Northern', 'Central 1', 'Central 2', 'Southern', 'East Coast', 'East Malaysia', 'Unassigned (Central)'];
   let html = '';
 
   for (const region of regionOrder) {
@@ -647,7 +647,7 @@ function renderStuck(groups) {
   `;
 
   // Render by Region -> SC
-  const regionOrder = ['Northern', 'Central 1', 'Central 2', 'Southern', 'East Coast', 'East Malaysia', 'Unassigned'];
+  const regionOrder = ['Northern', 'Central 1', 'Central 2', 'Southern', 'East Coast', 'East Malaysia', 'Unassigned (Central)'];
   let html = '';
 
   for (const region of regionOrder) {
@@ -794,7 +794,7 @@ function toSnapshot(items) {
   return map;
 }
 
-const regionOrderMove = ['Northern', 'Central 1', 'Central 2', 'Southern', 'East Coast', 'East Malaysia', 'Unassigned'];
+const regionOrderMove = ['Northern', 'Central 1', 'Central 2', 'Southern', 'East Coast', 'East Malaysia', 'Unassigned (Central)'];
 
 // kind: 'pcc' or 'stuck'
 function renderMovement(kind, liveItems) {
@@ -873,7 +873,7 @@ function renderMovement(kind, liveItems) {
 
   const regionData = {};
   tagged.forEach(it => {
-    const region = it.region || 'Unassigned';
+    const region = it.region || 'Unassigned (Central)';
     const sc = it.sc || '—';
     if (!regionData[region]) regionData[region] = {};
     if (!regionData[region][sc]) regionData[region][sc] = [];
