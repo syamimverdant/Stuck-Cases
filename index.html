@@ -115,6 +115,35 @@
       margin: 0 auto 15px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Movement sections (3 & 4) */
+    tr.move-new { background: #fffbcc !important; }
+    tr.move-new:hover { background: #fff5a8 !important; }
+    tr.move-cleared { background: #d7f5df !important; }
+    tr.move-cleared:hover { background: #c3efd0 !important; }
+    .status-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 0.78em;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .status-new { background: #d69e2e; color: #fff; }
+    .status-cleared { background: #38a169; color: #fff; }
+    .move-legend {
+      display: flex; gap: 18px; flex-wrap: wrap;
+      margin: 10px 0 18px; font-size: 0.85em; color: #4a5568;
+    }
+    .move-legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .move-legend .swatch {
+      width: 14px; height: 14px; border-radius: 3px; display: inline-block;
+    }
+    .move-empty {
+      background: #fff; border: 1px dashed #cbd5e0; border-radius: 10px;
+      padding: 24px 20px; text-align: center; color: #718096;
+    }
   </style>
 </head>
 <body>
@@ -227,6 +256,7 @@ function render(groups) {
         duration = durationDays + ' days';
       }
       allItems.push({
+        id: item.id,
         name: item.name,
         sc: cols['person'] || '—',
         closedDate: cols['date4'] || '—',
@@ -302,6 +332,10 @@ function render(groups) {
 
   // Build chart data
   buildChart(allItems);
+
+  // Expose for movement tracking (Section 3)
+  window.pccItems = allItems;
+  if (typeof renderMovement === 'function') renderMovement('pcc', allItems);
 }
 
 let pccChart = null;
@@ -523,6 +557,7 @@ function renderStuck(groups) {
         duration = durationDays + ' days';
       }
       allItems.push({
+        id: item.id,
         name: item.name,
         sc: cols['person'] || '—',
         closedDate: closedDate || '—',
@@ -595,12 +630,249 @@ function renderStuck(groups) {
 
   document.getElementById('stuckContent').innerHTML = html;
   document.getElementById('stuckLastUpdate').textContent = 'Last updated: ' + new Date().toLocaleString('en-MY');
+
+  // Expose for movement tracking (Section 4)
+  window.stuckItems = allItems;
+  if (typeof renderMovement === 'function') renderMovement('stuck', allItems);
 }
 
 // Init External Stuck Cases
 fetchStuckData().then(renderStuck).catch(err => {
   document.getElementById('stuckContent').innerHTML = '<p style="color:#e53e3e; padding:20px;">Error fetching data: ' + err.message + '</p>';
 });
+</script>
+
+
+<!-- Section 3: PCC Movement -->
+<div class="container" style="margin-top: 60px;">
+  <h1 style="border-color: #805ad5;">🔄 Section 3 — PCC Movement (Weekly)</h1>
+  <p class="meta">Weekly change tracking | Cut-off: Monday each week | <span id="pccMoveWeek">Loading...</span></p>
+  <div class="move-legend">
+    <span><span class="swatch" style="background:#fffbcc; border:1px solid #d69e2e;"></span> New PCC this week</span>
+    <span><span class="swatch" style="background:#d7f5df; border:1px solid #38a169;"></span> Cleared from PCC this week</span>
+  </div>
+  <div id="pccMoveSummaryBar" class="summary-bar"></div>
+  <div id="pccMoveContent">
+    <div class="loading"><div class="spinner"></div><p>Computing PCC movement...</p></div>
+  </div>
+</div>
+
+<!-- Section 4: External Movement -->
+<div class="container" style="margin-top: 60px;">
+  <h1 style="border-color: #805ad5;">🔄 Section 4 — External Movement (Weekly)</h1>
+  <p class="meta">Weekly change tracking | Cut-off: Monday each week | <span id="stuckMoveWeek">Loading...</span></p>
+  <div class="move-legend">
+    <span><span class="swatch" style="background:#fffbcc; border:1px solid #d69e2e;"></span> New external case this week</span>
+    <span><span class="swatch" style="background:#d7f5df; border:1px solid #38a169;"></span> Proceeded to next stage this week</span>
+  </div>
+  <div id="stuckMoveSummaryBar" class="summary-bar"></div>
+  <div id="stuckMoveContent">
+    <div class="loading"><div class="spinner"></div><p>Computing external movement...</p></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// Weekly Movement Tracking (Sections 3 & 4) — localStorage based
+// Cut-off is Monday each week. New items appearing before the next
+// Tuesday are highlighted yellow; items that left (cleared / proceeded)
+// are highlighted green. Only changed items are shown.
+// ============================================================
+
+const MOVE_STORAGE_KEY = 'pccDashboardSnapshots_v1';
+
+// Returns the ISO date (YYYY-MM-DD) of the Monday on/at the start of the
+// current week. The weekly window runs Mon 00:00 -> next Mon 00:00, so any
+// item appearing up to and including Monday counts for that week and the
+// comparison baseline stays fixed until the following Monday.
+function currentWeekMonday(now) {
+  const d = now ? new Date(now) : new Date();
+  const day = d.getDay() || 7;           // Sun=7 .. Sat=6, Mon=1
+  const monday = new Date(d);
+  monday.setHours(0, 0, 0, 0);
+  monday.setDate(d.getDate() - day + 1); // back up to this week's Monday
+  // Format from LOCAL components (avoid toISOString UTC roll-back).
+  const y = monday.getFullYear();
+  const m = String(monday.getMonth() + 1).padStart(2, '0');
+  const dd = String(monday.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
+function loadSnapshots() {
+  try {
+    return JSON.parse(localStorage.getItem(MOVE_STORAGE_KEY)) || {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveSnapshots(store) {
+  try {
+    localStorage.setItem(MOVE_STORAGE_KEY, JSON.stringify(store));
+  } catch (e) {
+    console.error('Could not save movement snapshot:', e);
+  }
+}
+
+// Build a lightweight, serialisable snapshot keyed by item id.
+function toSnapshot(items) {
+  const map = {};
+  items.forEach(it => {
+    map[it.id] = {
+      id: it.id,
+      name: it.name,
+      sc: it.sc,
+      state: it.state,
+      region: it.region,
+      closedDate: it.closedDate,
+      drawingStatus: it.drawingStatus || '',
+      sedaStatus: it.sedaStatus || '',
+      duration: it.duration,
+      durationDays: it.durationDays
+    };
+  });
+  return map;
+}
+
+const regionOrderMove = ['Northern', 'Central', 'Southern', 'East Coast', 'East Malaysia', 'Unknown'];
+
+// kind: 'pcc' or 'stuck'
+function renderMovement(kind, liveItems) {
+  // Live items may not carry an id for very old renders — guard against it.
+  const live = liveItems.filter(it => it && it.id != null);
+
+  const cfg = kind === 'pcc'
+    ? {
+        weekEl: 'pccMoveWeek', summaryEl: 'pccMoveSummaryBar', contentEl: 'pccMoveContent',
+        newLabel: 'New PCC', clearedLabel: 'Cleared from PCC',
+        columns: ['#', 'Status', 'Customer Name', 'Sales Consultant', 'State', 'Closed Date', 'PCC Duration']
+      }
+    : {
+        weekEl: 'stuckMoveWeek', summaryEl: 'stuckMoveSummaryBar', contentEl: 'stuckMoveContent',
+        newLabel: 'New External Case', clearedLabel: 'Proceeded to Next Stage',
+        columns: ['#', 'Status', 'Customer Name', 'Drawing Status', 'SEDA Status', 'State', 'Closed Date', 'Duration']
+      };
+
+  const thisMonday = currentWeekMonday();
+  const store = loadSnapshots();
+  if (!store[kind]) store[kind] = {};
+
+  const liveSnap = toSnapshot(live);
+  const liveIds = new Set(Object.keys(liveSnap));
+
+  // Find the most recent saved snapshot from a PREVIOUS week (not this week).
+  const priorWeeks = Object.keys(store[kind])
+    .filter(wk => wk < thisMonday)
+    .sort();
+  const priorKey = priorWeeks.length ? priorWeeks[priorWeeks.length - 1] : null;
+  const priorSnap = priorKey ? store[kind][priorKey].items : null;
+
+  document.getElementById(cfg.weekEl).textContent =
+    'Week of ' + thisMonday + (priorKey ? ' (vs week of ' + priorKey + ')' : ' — baseline week');
+
+  // Always (re)save this week's snapshot so next week has a baseline.
+  store[kind][thisMonday] = { capturedAt: new Date().toISOString(), items: liveSnap };
+  saveSnapshots(store);
+
+  // First run for this kind: no prior week to diff against.
+  if (!priorSnap) {
+    document.getElementById(cfg.summaryEl).innerHTML = `
+      <div class="summary-card"><div class="value">${liveIds.size}</div><div class="label">Items Captured (Baseline)</div></div>`;
+    document.getElementById(cfg.contentEl).innerHTML =
+      '<div class="move-empty">📸 Baseline snapshot captured for the week of <strong>' + thisMonday +
+      '</strong>.<br>Movement (new vs cleared) will appear from next week\'s Monday cut-off once there is a prior week to compare against.</div>';
+    return;
+  }
+
+  const priorIds = new Set(Object.keys(priorSnap));
+
+  // NEW = in live now, not in prior snapshot
+  const newItems = [];
+  liveIds.forEach(id => { if (!priorIds.has(id)) newItems.push(liveSnap[id]); });
+
+  // CLEARED = in prior snapshot, no longer in live
+  const clearedItems = [];
+  priorIds.forEach(id => { if (!liveIds.has(id)) clearedItems.push(priorSnap[id]); });
+
+  // Summary cards
+  document.getElementById(cfg.summaryEl).innerHTML = `
+    <div class="summary-card"><div class="value" style="color:#d69e2e;">${newItems.length}</div><div class="label">${cfg.newLabel} (New)</div></div>
+    <div class="summary-card"><div class="value" style="color:#38a169;">${clearedItems.length}</div><div class="label">${cfg.clearedLabel} (Out)</div></div>
+    <div class="summary-card"><div class="value">${newItems.length + clearedItems.length}</div><div class="label">Total Movement</div></div>`;
+
+  if (newItems.length === 0 && clearedItems.length === 0) {
+    document.getElementById(cfg.contentEl).innerHTML =
+      '<div class="move-empty">No movement this week — nothing new came in and nothing cleared since the week of <strong>' + priorKey + '</strong>.</div>';
+    return;
+  }
+
+  // Tag items with their movement status, then group Region -> SC.
+  const tagged = []
+    .concat(newItems.map(it => ({ ...it, _status: 'new' })))
+    .concat(clearedItems.map(it => ({ ...it, _status: 'cleared' })));
+
+  const regionData = {};
+  tagged.forEach(it => {
+    const region = it.region || 'Unknown';
+    const sc = it.sc || '—';
+    if (!regionData[region]) regionData[region] = {};
+    if (!regionData[region][sc]) regionData[region][sc] = [];
+    regionData[region][sc].push(it);
+  });
+
+  let html = '';
+  for (const region of regionOrderMove) {
+    if (!regionData[region]) continue;
+    const scGroups = regionData[region];
+    const regionTotal = Object.values(scGroups).reduce((s, arr) => s + arr.length, 0);
+
+    html += `
+      <div class="region-section">
+        <div class="region-header" style="background:#6b46c1;" onclick="this.nextElementSibling.classList.toggle('open')">
+          <h2>${region}</h2>
+          <span class="count">${regionTotal} changes</span>
+        </div>
+        <div class="region-content open">`;
+
+    const scKeys = Object.keys(scGroups).sort((a, b) => scGroups[b].length - scGroups[a].length);
+    for (const sc of scKeys) {
+      const items = scGroups[sc];
+      html += `
+          <div class="fy-section">
+            <div class="fy-header" onclick="this.nextElementSibling.classList.toggle('open')">
+              <h3>${sc}</h3>
+              <span class="count">${items.length} changes</span>
+            </div>
+            <div class="fy-content open">
+              <table>
+                <thead><tr>${cfg.columns.map(c => '<th>' + c + '</th>').join('')}</tr></thead>
+                <tbody>`;
+      // New first, then cleared
+      items.sort((a, b) => (a._status === b._status ? 0 : a._status === 'new' ? -1 : 1));
+      items.forEach((item, i) => {
+        const rowClass = item._status === 'new' ? 'move-new' : 'move-cleared';
+        const badge = item._status === 'new'
+          ? '<span class="status-badge status-new">New</span>'
+          : '<span class="status-badge status-cleared">Cleared</span>';
+        const dc = durationColor(item.durationDays);
+        const dStyle = dc ? ` style="color:${dc}; font-weight:600;"` : '';
+        if (kind === 'pcc') {
+          html += `<tr class="${rowClass}"><td>${i+1}</td><td>${badge}</td><td>${item.name}</td><td>${item.sc}</td><td>${item.state}</td><td>${item.closedDate}</td><td${dStyle}>${item.duration}</td></tr>`;
+        } else {
+          html += `<tr class="${rowClass}"><td>${i+1}</td><td>${badge}</td><td>${item.name}</td><td>${item.drawingStatus}</td><td>${item.sedaStatus}</td><td>${item.state}</td><td>${item.closedDate}</td><td${dStyle}>${item.duration}</td></tr>`;
+        }
+      });
+      html += `</tbody></table></div></div>`;
+    }
+    html += `</div></div>`;
+  }
+
+  document.getElementById(cfg.contentEl).innerHTML = html;
+}
+
+// If data already loaded before this script ran, compute movement now.
+if (window.pccItems) renderMovement('pcc', window.pccItems);
+if (window.stuckItems) renderMovement('stuck', window.stuckItems);
 </script>
 
 </body>
