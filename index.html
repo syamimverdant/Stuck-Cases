@@ -204,6 +204,52 @@ const MANUAL_REGION_OVERRIDES = {
   'LIM KIM SWEE': 'Central'
 };
 
+// Central sub-team split by Sales Consultant.
+// Names are matched case-insensitively and trimmed, so board variations
+// in capitalisation/spacing still match (e.g. "IZZFAUZAN RAZALI").
+const CENTRAL_1_SCS = [
+  'Aaron Ho', 'Azam', 'Muhammad Syafiq Ilmin', 'Haziq Nou Bal', 'Sunny Chung',
+  'Vicz', 'Kelly Lim', 'Kylie Ho Kai Li', 'Beryl', 'Izzfauzan Razali', 'Dennis Chuah'
+];
+const CENTRAL_2_SCS = [
+  'Muhammad Haziq', 'Muhammad Aiman', 'Sharlene', 'Arif Shamsul', 'Ahmad Bayhaki',
+  'Muhamad Zairul Ashriq Bin Zulkepli', 'Harry Goh', 'Wong Eu Gene', 'Josephine',
+  'Shafiq Salleh', 'Wong Shan Jen', 'Anna Lim'
+];
+
+const SC_TEAM = {};
+CENTRAL_1_SCS.forEach(n => { SC_TEAM[n.trim().toLowerCase()] = 'Central 1'; });
+CENTRAL_2_SCS.forEach(n => { SC_TEAM[n.trim().toLowerCase()] = 'Central 2'; });
+
+// SCs that always belong to a fixed region regardless of the case's state
+// (e.g. Northern team members whose cases may sit in other states).
+const SC_REGION_FORCE = {};
+['Shirley', 'Nornaim Kamarudin', 'Syaheed Kunchalavi'].forEach(n => {
+  SC_REGION_FORCE[n.trim().toLowerCase()] = 'Northern';
+});
+
+// Resolve the display region/team for an item.
+// Interpretation B:
+//  - If the SC is in a Central team list -> that team (overrides state/region).
+//  - Else keep the state-based region (Northern/Southern/East Coast/East Malaysia).
+//  - Else (would be Central / unknown and not listed) -> Unassigned.
+function resolveRegion(scName, state, itemName) {
+  const key = (scName || '').trim().toLowerCase();
+
+  // 1. Explicit Central team assignment overrides everything.
+  if (SC_TEAM[key]) return SC_TEAM[key];
+
+  // 2. SCs pinned to a fixed region (e.g. Northern) regardless of state.
+  if (SC_REGION_FORCE[key]) return SC_REGION_FORCE[key];
+
+  // 3. Otherwise fall back to the case's state-based region.
+  const stateRegion = STATE_TO_REGION[state] || MANUAL_REGION_OVERRIDES[itemName];
+  if (stateRegion && stateRegion !== 'Central') return stateRegion;
+
+  // 4. Central-by-state (or unknown) but SC not in any list.
+  return 'Unassigned';
+}
+
 // Duration colour coding: <180 days green, 180-360 yellow, >360 red.
 // Returns a hex colour, or empty string when the day count is unknown.
 function durationColor(days) {
@@ -242,7 +288,8 @@ function render(groups) {
       const cols = {};
       item.column_values.forEach(cv => { cols[cv.id] = cv.text; });
       const state = cols['area__1'] || '';
-      const region = STATE_TO_REGION[state] || MANUAL_REGION_OVERRIDES[item.name] || 'Central';
+      const sc = cols['person'] || '—';
+      const region = resolveRegion(sc, state, item.name);
       const price = parseFloat(cols['numbers8']) || 0;
       totalValue += price;
       totalItems++;
@@ -258,7 +305,7 @@ function render(groups) {
       allItems.push({
         id: item.id,
         name: item.name,
-        sc: cols['person'] || '—',
+        sc: sc,
         closedDate: cols['date4'] || '—',
         drawingReqDate: cols['date'] || '',
         state: state,
@@ -285,7 +332,7 @@ function render(groups) {
   `;
 
   // Render by Region -> SC
-  const regionOrder = ['Northern', 'Central', 'Southern', 'East Coast', 'East Malaysia', 'Unknown'];
+  const regionOrder = ['Northern', 'Central 1', 'Central 2', 'Southern', 'East Coast', 'East Malaysia', 'Unassigned'];
   let html = '';
 
   for (const region of regionOrder) {
@@ -542,7 +589,8 @@ function renderStuck(groups) {
       const cols = {};
       item.column_values.forEach(cv => { cols[cv.id] = cv.text; });
       const state = cols['area__1'] || '';
-      const region = STATE_TO_REGION[state] || MANUAL_REGION_OVERRIDES[item.name] || 'Central';
+      const sc = cols['person'] || '—';
+      const region = resolveRegion(sc, state, item.name);
       const price = parseFloat(cols['numbers8']) || 0;
       totalValue += price;
       totalItems++;
@@ -560,7 +608,7 @@ function renderStuck(groups) {
       allItems.push({
         id: item.id,
         name: item.name,
-        sc: cols['person'] || '—',
+        sc: sc,
         closedDate: closedDate || '—',
         drawingStatus: cols['status91'] || '—',
         customerReadiness: custReadiness,
@@ -588,7 +636,7 @@ function renderStuck(groups) {
   `;
 
   // Render by Region -> SC
-  const regionOrder = ['Northern', 'Central', 'Southern', 'East Coast', 'East Malaysia', 'Unknown'];
+  const regionOrder = ['Northern', 'Central 1', 'Central 2', 'Southern', 'East Coast', 'East Malaysia', 'Unassigned'];
   let html = '';
 
   for (const region of regionOrder) {
@@ -735,7 +783,7 @@ function toSnapshot(items) {
   return map;
 }
 
-const regionOrderMove = ['Northern', 'Central', 'Southern', 'East Coast', 'East Malaysia', 'Unknown'];
+const regionOrderMove = ['Northern', 'Central 1', 'Central 2', 'Southern', 'East Coast', 'East Malaysia', 'Unassigned'];
 
 // kind: 'pcc' or 'stuck'
 function renderMovement(kind, liveItems) {
@@ -814,7 +862,7 @@ function renderMovement(kind, liveItems) {
 
   const regionData = {};
   tagged.forEach(it => {
-    const region = it.region || 'Unknown';
+    const region = it.region || 'Unassigned';
     const sc = it.sc || '—';
     if (!regionData[region]) regionData[region] = {};
     if (!regionData[region][sc]) regionData[region][sc] = [];
