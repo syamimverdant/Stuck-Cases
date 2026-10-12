@@ -204,29 +204,34 @@ const MANUAL_REGION_OVERRIDES = {
   'LIM KIM SWEE': 'Central'
 };
 
-// Central sub-team split by Sales Consultant.
+// Team assignment by Sales Consultant.
 // Names are matched case-insensitively and trimmed, so board variations
 // in capitalisation/spacing still match (e.g. "IZZFAUZAN RAZALI").
+// An SC's team here OVERRIDES the case's state-based region.
 const CENTRAL_1_SCS = [
   'Aaron Ho', 'Azam', 'Muhammad Syafiq Ilmin', 'Haziq Nou Bal', 'Sunny Chung',
-  'Vicz', 'Kelly Lim', 'Kylie Ho Kai Li', 'Beryl', 'Izzfauzan Razali', 'Dennis Chuah'
+  'Vicz', 'Kelly Lim', 'Kylie Ho Kai Li', 'Beryl', 'Izzfauzan Razali', 'Dennis Chuah',
+  'Jayson Lai'
 ];
 const CENTRAL_2_SCS = [
   'Muhammad Haziq', 'Muhammad Aiman', 'Sharlene', 'Arif Shamsul', 'Ahmad Bayhaki',
   'Muhamad Zairul Ashriq Bin Zulkepli', 'Harry Goh', 'Wong Eu Gene', 'Josephine',
   'Shafiq Salleh', 'Wong Shan Jen', 'Anna Lim'
 ];
+const NORTHERN_SCS = [
+  'Syamim', 'Ashlynn Pang', 'Sidik', 'Nornaim Kamarudin', 'Adi Arifin',
+  'Syaheed Kunchalavi', 'Mabel Lim', 'Shirley', 'Norazwin'
+];
+const SOUTHERN_SCS = [
+  'Suresh Chandran Kumar', 'Ng Yin Moon', 'Fatin Nurliyana', 'Joseph Mah',
+  'Peter Raj', 'Aivin', 'Khin Fai'
+];
 
 const SC_TEAM = {};
 CENTRAL_1_SCS.forEach(n => { SC_TEAM[n.trim().toLowerCase()] = 'Central 1'; });
 CENTRAL_2_SCS.forEach(n => { SC_TEAM[n.trim().toLowerCase()] = 'Central 2'; });
-
-// SCs that always belong to a fixed region regardless of the case's state
-// (e.g. Northern team members whose cases may sit in other states).
-const SC_REGION_FORCE = {};
-['Shirley', 'Nornaim Kamarudin', 'Syaheed Kunchalavi'].forEach(n => {
-  SC_REGION_FORCE[n.trim().toLowerCase()] = 'Northern';
-});
+NORTHERN_SCS.forEach(n => { SC_TEAM[n.trim().toLowerCase()] = 'Northern'; });
+SOUTHERN_SCS.forEach(n => { SC_TEAM[n.trim().toLowerCase()] = 'Southern'; });
 
 // SCs whose cases are excluded entirely from the dashboard (all sections).
 const SC_EXCLUDE = new Set(
@@ -237,24 +242,20 @@ function isExcludedSC(scName) {
 }
 
 // Resolve the display region/team for an item.
-// Interpretation B:
-//  - If the SC is in a Central team list -> that team (overrides state/region).
-//  - Else keep the state-based region (Northern/Southern/East Coast/East Malaysia).
+//  - If the SC has an explicit team assignment -> that team (overrides state).
+//  - Else fall back to the case's state-based region (non-Central only).
 //  - Else (would be Central / unknown and not listed) -> Unassigned.
 function resolveRegion(scName, state, itemName) {
   const key = (scName || '').trim().toLowerCase();
 
-  // 1. Explicit Central team assignment overrides everything.
+  // 1. Explicit SC team assignment overrides everything.
   if (SC_TEAM[key]) return SC_TEAM[key];
 
-  // 2. SCs pinned to a fixed region (e.g. Northern) regardless of state.
-  if (SC_REGION_FORCE[key]) return SC_REGION_FORCE[key];
-
-  // 3. Otherwise fall back to the case's state-based region.
+  // 2. Otherwise fall back to the case's state-based region.
   const stateRegion = STATE_TO_REGION[state] || MANUAL_REGION_OVERRIDES[itemName];
   if (stateRegion && stateRegion !== 'Central') return stateRegion;
 
-  // 4. Central-by-state (or unknown) but SC not in any list.
+  // 3. Central-by-state (or unknown) but SC not in any list.
   return 'Unassigned';
 }
 
