@@ -149,7 +149,22 @@
 <body>
 <div class="container">
   <h1>📋 PCC Project — Pending Client Confirmation</h1>
-  <p class="meta">Drawing status: "Pending Client Confirmation" | Board: PV Projects | <span id="lastUpdate">Loading...</span></p>
+  <p class="meta">Board: PV Projects | <span id="lastUpdate">Loading...</span></p>
+  <details style="background:#fff; border:1px solid #e2e8f0; border-left:4px solid #2b6cb0; border-radius:6px; padding:10px 14px; margin-bottom:20px; font-size:0.85em; color:#4a5568;">
+    <summary style="cursor:pointer; font-weight:600; color:#1a365d;">How this list is defined (filter criteria)</summary>
+    <div style="margin-top:10px;">
+      A case appears here when it meets this condition:
+      <ul style="margin:8px 0 4px 18px;">
+        <li><strong>Drawing status = "Pending Client Confirmation"</strong> (status index 8)</li>
+      </ul>
+      Excluded from the list:
+      <ul style="margin:8px 0 0 18px;">
+        <li>Group titled <strong>"DROP"</strong> (and the internal group <code>new_group6902</code>)</li>
+        <li>Cases assigned to <strong>Kishen Mohan</strong> or <strong>KC Lim</strong> (excluded everywhere)</li>
+      </ul>
+      <p style="margin:10px 0 0;"><em>PCC Duration</em> is counted from the Drawing Request Date to today (green &lt;180 days, yellow 180–360, red &gt;360).</p>
+    </div>
+  </details>
 
   <div id="summaryBar" class="summary-bar"></div>
 
@@ -542,7 +557,26 @@ setInterval(() => {
 <!-- Section 2: External Stuck Cases -->
 <div class="container" style="margin-top: 60px;">
   <h1 style="border-color: #e53e3e;">🚨 External Stuck Cases Project — Exclude Pending Client Confirmation</h1>
-  <p class="meta">Drawing status: NOT "Done" & NOT "Pending Client Confirmation" | <span id="stuckLastUpdate">Loading...</span></p>
+  <p class="meta"><span id="stuckLastUpdate">Loading...</span></p>
+  <details style="background:#fff; border:1px solid #e2e8f0; border-left:4px solid #e53e3e; border-radius:6px; padding:10px 14px; margin-bottom:20px; font-size:0.85em; color:#4a5568;">
+    <summary style="cursor:pointer; font-weight:600; color:#9b2c2c;">How this list is defined (filter criteria)</summary>
+    <div style="margin-top:10px;">
+      A case appears here only when it meets <strong>all</strong> of the following:
+      <ul style="margin:8px 0 4px 18px;">
+        <li><strong>Drawing status is in-progress</strong> — one of: Requested, SSR Approved, SSR Rejected, Pending, Revise Request, Return by Ops Team, PE Checking, Revised PE Checking. <br>(i.e. <strong>NOT "Done"</strong> and <strong>NOT "Pending Client Confirmation"</strong>)</li>
+        <li><strong>CH Reason = "External"</strong></li>
+        <li><strong>Customer Handover ≠ "Done"</strong></li>
+        <li><strong>SEDA Application has not advanced</strong> — excludes Done, Payment Made, Submitted, and Check Pending</li>
+        <li><strong>Full-system project only</strong> — excludes add-on / partial categories: NOVA, Inverter Only, Panel Only, Add-on Power Meter, Battery Only, EPS Box Only</li>
+      </ul>
+      Also excluded:
+      <ul style="margin:8px 0 0 18px;">
+        <li>Group titled <strong>"DROP"</strong> (and the internal group <code>new_group6902</code>)</li>
+        <li>Cases assigned to <strong>Kishen Mohan</strong> or <strong>KC Lim</strong></li>
+      </ul>
+      <p style="margin:10px 0 0;"><em>Duration</em> is counted from the Closed Date to today (green &lt;180 days, yellow 180–360, red &gt;360).</p>
+    </div>
+  </details>
 
   <div id="stuckSummaryBar" class="summary-bar"></div>
   <div id="stuckContent">
