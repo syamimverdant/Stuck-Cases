@@ -970,5 +970,138 @@ if (window.pccItems) renderMovement('pcc', window.pccItems);
 if (window.stuckItems) renderMovement('stuck', window.stuckItems);
 </script>
 
+<!-- Section 5: History of Movement (separate from tracker; reads history.json) -->
+<div class="container" style="margin-top: 60px;" id="historySection">
+  <h1 style="border-color: #2f855a;">📊 Section 5 — History of Movement (Whole Team)</h1>
+  <p class="meta">Numbers only, no customer details | Source: Monday activity log, rebuilt weekly (Mon–Sun, MYT) | <span id="histMeta">Loading...</span></p>
+
+  <div id="histBody"><div class="loading"><div class="spinner"></div><p>Loading history...</p></div></div>
+</div>
+
+<script>
+(function () {
+  const LAUNCH_WEEK = '2026-07-27';        // week containing the 29 Jul 2026 launch
+  const AFTER_FROM = '2026-08-03';
+  const fmt = n => n === null || n === undefined ? '–' : Number(n).toLocaleString('en-MY');
+  const rm = n => 'RM ' + (n / 1e6).toFixed(2) + 'M';
+  const card = (title, value, sub, color) => `<div class="summary-card"><div style="font-size:0.8em;color:#718096;">${title}</div><div style="font-size:1.6em;font-weight:700;color:${color || '#1a365d'};">${value}</div><div style="font-size:0.75em;color:#718096;">${sub || ''}</div></div>`;
+  // delta card: lowerIsBetter decides colour
+  const delta = (title, b, a, unit, lowerBetter) => {
+    if (b === null || a === null || b === undefined || a === undefined) return card(title, '–', '');
+    const diff = a - b, good = lowerBetter ? diff < 0 : diff > 0;
+    const col = Math.abs(diff) < 0.0001 ? '#718096' : good ? '#2f855a' : '#c53030';
+    const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '=';
+    return card(title, `${fmt(+a.toFixed(1))}${unit}`, `before ${fmt(+b.toFixed(1))}${unit} &nbsp;<b style="color:${col}">${arrow} ${fmt(+Math.abs(diff).toFixed(1))}${unit}</b>`, col);
+  };
+  const charts = {};
+  function chart(id, rows, opts) {
+    const labels = rows.map(r => r.week.slice(5));
+    const after = r => r.week >= LAUNCH_WEEK;
+    const ds = [
+      { type: 'bar', label: 'Entered', data: rows.map(r => r.entered), backgroundColor: rows.map(r => after(r) ? '#f6ad55' : '#fbd38d'), yAxisID: 'y' },
+      { type: 'bar', label: opts.outLabel, data: rows.map(r => r.outDone), backgroundColor: rows.map(r => after(r) ? '#38a169' : '#9ae6b4'), yAxisID: 'y' },
+      { type: 'line', label: 'Pool size (end of week)', data: rows.map(r => r.pool), borderColor: '#2b6cb0', backgroundColor: '#2b6cb0', tension: 0.25, pointRadius: 2, yAxisID: 'y1' }
+    ];
+    if (charts[id]) charts[id].destroy();
+    charts[id] = new Chart(document.getElementById(id), {
+      data: { labels, datasets: ds },
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: { tooltip: { callbacks: { title: i => 'Week of ' + rows[i[0].dataIndex].week + (rows[i[0].dataIndex].partial ? ' (in progress)' : '') } } },
+        scales: { y: { beginAtZero: true, title: { display: true, text: 'Cases / week' } }, y1: { position: 'right', beginAtZero: false, grid: { drawOnChartArea: false }, title: { display: true, text: 'Pool size' } } } }
+    });
+  }
+  function daysChart(rows) {
+    const r = rows.filter(x => x.medDays !== undefined && x.medDays !== null);
+    if (charts.hDays) charts.hDays.destroy();
+    charts.hDays = new Chart(document.getElementById('hDays'), {
+      data: { labels: r.map(x => x.week.slice(5)), datasets: [
+        { type: 'line', label: 'Median days in PCC (cleared that week)', data: r.map(x => x.medDays), borderColor: '#805ad5', backgroundColor: '#805ad5', tension: 0.25, pointRadius: 2, yAxisID: 'y' },
+        { type: 'line', label: '% cleared within 7 days', data: r.map(x => x.nCleared ? +(100 * x.le7 / x.nCleared).toFixed(0) : null), borderColor: '#38a169', backgroundColor: '#38a169', borderDash: [5, 4], tension: 0.25, pointRadius: 2, yAxisID: 'y1' } ] },
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        scales: { y: { beginAtZero: true, title: { display: true, text: 'Days' } }, y1: { position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, title: { display: true, text: '%' } } } }
+    });
+  }
+  function teamTable(byTeam, withPool) {
+    const rowsH = Object.entries(byTeam).map(([t, v]) => {
+      const b = v.before, a = v.after;
+      const d = (x, y, low) => { if (x === null || y === null) return '–'; const diff = y - x; const good = low ? diff < 0 : diff > 0; return `${fmt(x)} → <b style="color:${Math.abs(diff) < 0.05 ? '#718096' : good ? '#2f855a' : '#c53030'}">${fmt(y)}</b>`; };
+      return `<tr><td style="font-weight:600;">${t}</td><td>${fmt(v.poolNow)}</td><td>${d(b.avgPool, a.avgPool, true)}</td><td>${d(b.avgEntered, a.avgEntered, true)}</td><td>${d(b.avgOutDone, a.avgOutDone, false)}</td>${b.medianDays !== undefined && b.medianDays !== null ? `<td>${d(b.medianDays, a.medianDays, true)}</td>` : '<td>–</td>'}</tr>`;
+    }).join('');
+    return `<table style="width:100%;border-collapse:collapse;font-size:0.85em;background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+      <thead><tr style="background:#edf2f7;text-align:left;"><th style="padding:8px;">Team</th><th>Pool now</th><th>Avg pool (before → after)</th><th>Entered / wk</th><th>Cleared / wk</th><th>Median days (PCC)</th></tr></thead>
+      <tbody>${rowsH.replace(/<td>/g, '<td style="padding:7px 8px;border-top:1px solid #edf2f7;">')}</tbody></table>`;
+  }
+  function render(h) {
+    const P = h.pcc, E = h.ext, pb = P.before, pa = P.after, eb = E.before, ea = E.after, s = h.sinceLaunch;
+    document.getElementById('histMeta').textContent = 'Updated ' + new Date(h.generatedAt).toLocaleString('en-MY') + ' | Launch 29 Jul 2026 | Movement tracker since 12 Oct 2026';
+    const nob = s.nob;
+    document.getElementById('histBody').innerHTML = `
+      <div style="background:#ebf8ff;border-left:4px solid #3182ce;padding:12px 16px;border-radius:6px;font-size:0.88em;margin-bottom:18px;">
+        <b>How to read this:</b> "Before" = ${pb.weeks} full weeks (${pb.from} to ${pb.to}). "After" = ${pa.weeks} full weeks (${pa.from} to ${pa.to}). The week of 27 Jul (launch) is excluded from both. Green = better, red = worse.
+      </div>
+
+      <h3 style="color:#1a365d;margin:10px 0;">PCC (Pending Client Confirmation) — before vs after</h3>
+      <div class="summary-bar">
+        ${delta('Median days in PCC', pb.medianDays, pa.medianDays, ' d', true)}
+        ${delta('Cleared within 7 days', pb.pctWithin7d, pa.pctWithin7d, '%', false)}
+        ${delta('Avg pool size', pb.avgPool, pa.avgPool, '', true)}
+        ${delta('Cleared / week', pb.avgOutDone, pa.avgOutDone, '', false)}
+        ${delta('Entered / week', pb.avgEntered, pa.avgEntered, '', true)}
+        ${delta('Cases left PCC >14 days', pb.pctOver14d, pa.pctOver14d, '%', true)}
+      </div>
+      <div class="summary-bar">
+        ${card('Pool now', fmt(P.poolNow), 'cases in PCC today')}
+        ${card('Cleared since launch', fmt(s.pccClearedCases), 'cases PCC → Done (29 Jul onward)', '#2f855a')}
+        ${card('Potential NOB', rm(nob.potential[1]), fmt(nob.potential[0]) + ' cases, SEDA submitted or later', '#2f855a')}
+        ${card('Awaiting submission', rm(nob.awaiting[1]), fmt(nob.awaiting[0]) + ' cases cleared, SEDA not submitted yet', '#d69e2e')}
+        ${card('Dropped / reopened', fmt(nob.dropped[0]) + ' / ' + fmt(nob.reopened[0]), 'not counted as revenue', '#718096')}
+      </div>
+
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:20px;">
+        <h4 style="color:#1a365d;margin-bottom:8px;">PCC weekly: entered vs cleared, and pool size</h4>
+        <div style="height:320px;"><canvas id="hPcc"></canvas></div>
+        <p class="meta" style="margin:6px 0 0;">Darker bars = after launch (from week of 27 Jul). "Cleared" = moved PCC → Done.</p>
+      </div>
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:20px;">
+        <h4 style="color:#1a365d;margin-bottom:8px;">Time spent in PCC (cases cleared that week)</h4>
+        <div style="height:280px;"><canvas id="hDays"></canvas></div>
+      </div>
+      <h4 style="color:#1a365d;margin:14px 0 8px;">PCC by team (before → after)</h4>
+      ${teamTable(P.byTeam)}
+
+      <h3 style="color:#1a365d;margin:34px 0 10px;">External stuck cases — before vs after</h3>
+      <div class="summary-bar">
+        ${delta('Avg pool size', eb.avgPool, ea.avgPool, '', true)}
+        ${delta('Entered / week', eb.avgEntered, ea.avgEntered, '', true)}
+        ${delta('Left / week', eb.avgOutDone, ea.avgOutDone, '', false)}
+        ${card('Pool now', fmt(E.poolNow), 'external stuck cases today')}
+      </div>
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:20px;">
+        <h4 style="color:#1a365d;margin-bottom:8px;">External weekly: entered vs left, and pool size</h4>
+        <div style="height:320px;"><canvas id="hExt"></canvas></div>
+      </div>
+      <h4 style="color:#1a365d;margin:14px 0 8px;">External by team (before → after)</h4>
+      ${teamTable(E.byTeam)}
+
+      <details style="margin-top:24px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px;font-size:0.85em;">
+        <summary style="cursor:pointer;font-weight:600;color:#1a365d;">Definitions and limits</summary>
+        <ul style="margin:8px 0 0 18px;">
+          <li><b>History source:</b> Monday activity log, replayed case by case. Rebuilt PCC pool matches the live board (${h.check.pccReplay} vs ${h.check.pccLive}); External is within ${Math.abs(h.check.extLive - h.check.extReplay)} case(s) (${h.check.extReplay} vs ${h.check.extLive}).</li>
+          <li><b>Entered / cleared:</b> a case entering PCC counts once per entry. Cleared = PCC → Done. PCC exits to other statuses (e.g. Revise Request) and drops are tracked in the data but not shown as cleared.</li>
+          <li><b>Days in PCC:</b> entry to Done, only for cases whose entry is inside the log window (Jul 2025 onward).</li>
+          <li><b>Potential NOB:</b> cleared, not dropped, still Done today, and SEDA application at Submitted, Payment Made or Done. Cleared cases without a SEDA submission are shown as "awaiting submission". Dropped cases are excluded.</li>
+          <li><b>External:</b> same criteria as Section 2 (Drawing in a stuck status, CH Reason = External, Customer Handover not Done, SEDA not submitted, no add-on, excluding DROP group and excluded SCs). Add-on category and team are taken from the case today.</li>
+          <li><b>Reading the trend:</b> before/after is not proof the project caused the change. Monthly demand, season and case mix also move these numbers.</li>
+        </ul>
+      </details>`;
+    chart('hPcc', P.weekly, { outLabel: 'Cleared (PCC → Done)' });
+    chart('hExt', E.weekly, { outLabel: 'Left External (cleared)' });
+    daysChart(P.weekly);
+  }
+  fetch('history.json?t=' + Date.now()).then(r => { if (!r.ok) throw new Error('history.json not found'); return r.json(); }).then(render)
+    .catch(e => { document.getElementById('histBody').innerHTML = '<p style="color:#e53e3e;padding:20px;">Could not load history: ' + e.message + '</p>'; });
+})();
+</script>
+
 </body>
 </html>
