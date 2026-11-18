@@ -144,6 +144,12 @@
       background: #fff; border: 1px dashed #cbd5e0; border-radius: 10px;
       padding: 24px 20px; text-align: center; color: #718096;
     }
+    details.hsec { background:#fff; border:1px solid #e2e8f0; border-radius:10px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05); }
+    details.hsec > summary { cursor:pointer; padding:14px 18px; font-weight:700; color:#1a365d; font-size:1.02em; list-style:none; }
+    details.hsec > summary::before { content:'▸'; display:inline-block; width:18px; transition:transform .15s; }
+    details.hsec[open] > summary::before { transform:rotate(90deg); }
+    details.hsec > summary:hover { background:#f7fafc; border-radius:10px; }
+    details.hsec > .hsec-body { padding:4px 18px 18px; }
   </style>
 </head>
 <body>
@@ -1043,15 +1049,15 @@ if (window.stuckItems) renderMovement('stuck', window.stuckItems);
       <td style="${td}font-weight:700;color:${col(r.medianAll)};">${dd(r.medianAll)}</td>
       <td style="${td}font-weight:700;color:${col(r.medianSettled)};">${dd(r.medianSettled)}</td>
       <td style="${td}">${r.settled}</td><td style="${td}">${r.open}</td><td style="${td}">${dd(r.openMedianAge)}</td><td style="${td}font-weight:700;color:${r.open30 ? '#c53030' : '#718096'};">${r.open30}</td></tr>`).join('');
-    return `<h4 style="color:#1a365d;margin:26px 0 4px;">PCC duration by SC — KPI period ${k.from} to ${k.to}</h4>
-      <p class="meta" style="margin-bottom:8px;">Only cases whose Drawing status turned to PCC on or after 1 Jul 2026 are counted; earlier entries are ignored.
+    return sec(`PCC duration by SC — KPI period ${k.from} to ${k.to}`, `<p class="meta" style="margin-bottom:8px;">Only cases whose Drawing status turned to PCC on or after 1 Jul 2026 are counted; earlier entries are ignored.
       <b>All PCC</b> = every such case: settled ones measured to Done, cases that left PCC another way measured to that exit, and cases still in PCC measured to today.
       <b>Settled</b> = cases that reached Done. Team: average <b>${dd(T.avgAll)}</b>, median (all) <b>${dd(T.medianAll)}</b>, median (settled) <b>${dd(T.medianSettled)}</b>; ${T.entered} entered, ${T.settled} settled, ${T.open} still open, of which <b style="color:#c53030;">${T.open30}</b> for more than 30 days.
       Sorted by median (all), fastest first. * = fewer than 5 cases.</p>
       <table style="width:100%;border-collapse:collapse;font-size:0.85em;background:#fff;border:1px solid #e2e8f0;">
       <thead><tr style="background:#edf2f7;text-align:left;"><th style="padding:8px;">SC</th><th>Team</th><th>Entered PCC</th><th>Average (all)</th><th>Median (all PCC)</th><th>Median (settled)</th><th>Settled</th><th>Still in PCC</th><th>Median age (open)</th><th>Open &gt;30 d</th></tr></thead>
-      <tbody>${rows}</tbody></table>`;
+      <tbody>${rows}</tbody></table>`);
   }
+  const sec = (title, body, open) => `<details class="hsec"${open ? ' open' : ''}><summary>${title}</summary><div class="hsec-body">${body}</div></details>`;
   function render(h) {
     const P = h.pcc, E = h.ext, pb = P.before, pa = P.after, eb = E.before, ea = E.after, s = h.sinceLaunch;
     document.getElementById('histMeta').textContent = 'Updated ' + new Date(h.generatedAt).toLocaleString('en-MY') + ' | Launch 29 Jul 2026 | Movement tracker since 12 Oct 2026';
@@ -1061,8 +1067,7 @@ if (window.stuckItems) renderMovement('stuck', window.stuckItems);
         <b>How to read this:</b> "Before" = ${pb.weeks} full weeks (${pb.from} to ${pb.to}). "After" = ${pa.weeks} full weeks (${pa.from} to ${pa.to}). The week of 27 Jul (launch) is excluded from both. Green = better, red = worse.
       </div>
 
-      <h3 style="color:#1a365d;margin:10px 0;">PCC (Pending Client Confirmation) — before vs after</h3>
-      <div class="summary-bar">
+      ${sec('PCC (Pending Client Confirmation) — before vs after', `<div class="summary-bar">
         ${delta('Median days in PCC', pb.medianDays, pa.medianDays, ' d', true)}
         ${delta('Cleared within 7 days', pb.pctWithin7d, pa.pctWithin7d, '%', false)}
         ${delta('Avg pool size', pb.avgPool, pa.avgPool, '', true)}
@@ -1076,35 +1081,22 @@ if (window.stuckItems) renderMovement('stuck', window.stuckItems);
         ${card('Potential NOB', rm(nob.potential[1]), fmt(nob.potential[0]) + ' cases, SEDA submitted or later', '#2f855a')}
         ${card('Awaiting submission', rm(nob.awaiting[1]), fmt(nob.awaiting[0]) + ' cases cleared, SEDA not submitted yet', '#d69e2e')}
         ${card('Dropped / reopened', fmt(nob.dropped[0]) + ' / ' + fmt(nob.reopened[0]), 'not counted as revenue', '#718096')}
-      </div>
+      </div>`, true)}
 
-      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:20px;">
-        <h4 style="color:#1a365d;margin-bottom:8px;">PCC weekly: entered vs cleared, and pool size</h4>
-        <div style="height:320px;"><canvas id="hPcc"></canvas></div>
-        <p class="meta" style="margin:6px 0 0;">Darker bars = after launch (from week of 27 Jul). "Cleared" = moved PCC → Done.</p>
-      </div>
-      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:20px;">
-        <h4 style="color:#1a365d;margin-bottom:8px;">Time spent in PCC (cases cleared that week)</h4>
-        <div style="height:280px;"><canvas id="hDays"></canvas></div>
-      </div>
-      <h4 style="color:#1a365d;margin:14px 0 8px;">PCC by team (before → after)</h4>
-      ${teamTable(P.byTeam)}
-
+      ${sec('PCC weekly: entered vs cleared, and pool size', `<div style="height:320px;"><canvas id="hPcc"></canvas></div>
+        <p class="meta" style="margin:6px 0 0;">Darker bars = after launch (from week of 27 Jul). "Cleared" = moved PCC → Done.</p>`)}
+      ${sec('Time spent in PCC (cases cleared that week)', `<div style="height:280px;"><canvas id="hDays"></canvas></div>`)}
+      ${sec('PCC by team (before → after)', teamTable(P.byTeam))}
       ${scKpiTable(h.scKpi)}
 
-      <h3 style="color:#1a365d;margin:34px 0 10px;">External stuck cases — before vs after</h3>
-      <div class="summary-bar">
+      ${sec('External stuck cases — before vs after', `<div class="summary-bar">
         ${delta('Avg pool size', eb.avgPool, ea.avgPool, '', true)}
         ${delta('Entered / week', eb.avgEntered, ea.avgEntered, '', true)}
         ${delta('Left / week', eb.avgOutDone, ea.avgOutDone, '', false)}
         ${card('Pool now', fmt(E.poolNow), 'external stuck cases today')}
-      </div>
-      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:20px;">
-        <h4 style="color:#1a365d;margin-bottom:8px;">External weekly: entered vs left, and pool size</h4>
-        <div style="height:320px;"><canvas id="hExt"></canvas></div>
-      </div>
-      <h4 style="color:#1a365d;margin:14px 0 8px;">External by team (before → after)</h4>
-      ${teamTable(E.byTeam)}
+      </div>`)}
+      ${sec('External weekly: entered vs left, and pool size', `<div style="height:320px;"><canvas id="hExt"></canvas></div>`)}
+      ${sec('External by team (before → after)', teamTable(E.byTeam))}
 
       <details style="margin-top:24px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px;font-size:0.85em;">
         <summary style="cursor:pointer;font-weight:600;color:#1a365d;">Definitions and limits</summary>
@@ -1117,6 +1109,7 @@ if (window.stuckItems) renderMovement('stuck', window.stuckItems);
           <li><b>Reading the trend:</b> before/after is not proof the project caused the change. Monthly demand, season and case mix also move these numbers.</li>
         </ul>
       </details>`;
+    document.querySelectorAll('#histBody details.hsec').forEach(d => d.addEventListener('toggle', () => Object.values(charts).forEach(c => c.resize())));
     chart('hPcc', P.weekly, { outLabel: 'Cleared (PCC → Done)' });
     chart('hExt', E.weekly, { outLabel: 'Left External (cleared)' });
     daysChart(P.weekly);
