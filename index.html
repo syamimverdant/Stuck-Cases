@@ -933,7 +933,7 @@ function renderMovement(kind, liveItems) {
           <h2>${region}</h2>
           <span class="count">${regionTotal} changes</span>
         </div>
-        <div class="region-content open">`;
+        <div class="region-content">`;
 
     const scKeys = Object.keys(scGroups).sort((a, b) => scGroups[b].length - scGroups[a].length);
     for (const sc of scKeys) {
@@ -944,7 +944,7 @@ function renderMovement(kind, liveItems) {
               <h3>${sc}</h3>
               <span class="count">${items.length} changes</span>
             </div>
-            <div class="fy-content open">
+            <div class="fy-content">
               <table>
                 <thead><tr>${cfg.columns.map(c => '<th>' + c + '</th>').join('')}</tr></thead>
                 <tbody>`;
@@ -982,6 +982,13 @@ if (window.stuckItems) renderMovement('stuck', window.stuckItems);
   <p class="meta">Numbers only, no customer details | Source: Monday activity log, rebuilt weekly (Mon–Sun, MYT) | <span id="histMeta">Loading...</span></p>
 
   <div id="histBody"><div class="loading"><div class="spinner"></div><p>Loading history...</p></div></div>
+</div>
+
+<!-- Section 6: PCC duration by SC (KPI) -->
+<div class="container" style="margin-top: 60px;" id="scSection">
+  <h1 style="border-color: #dd6b20;">🎯 Section 6 — PCC Duration by SC (KPI)</h1>
+  <p class="meta">KPI period 1 Jul 2026 to 31 Dec 2026 | Numbers from the same activity-log rebuild as Section 5</p>
+  <div id="scBody"><div class="loading"><div class="spinner"></div><p>Loading...</p></div></div>
 </div>
 
 <script>
@@ -1055,7 +1062,7 @@ if (window.stuckItems) renderMovement('stuck', window.stuckItems);
       Sorted by median (all), fastest first. * = fewer than 5 cases.</p>
       <table style="width:100%;border-collapse:collapse;font-size:0.85em;background:#fff;border:1px solid #e2e8f0;">
       <thead><tr style="background:#edf2f7;text-align:left;"><th style="padding:8px;">SC</th><th>Team</th><th>Entered PCC</th><th>Average (all)</th><th>Median (all PCC)</th><th>Median (settled)</th><th>Settled</th><th>Still in PCC</th><th>Median age (open)</th><th>Open &gt;30 d</th></tr></thead>
-      <tbody>${rows}</tbody></table>`);
+      <tbody>${rows}</tbody></table>`, true);
   }
   const sec = (title, body, open) => `<details class="hsec"${open ? ' open' : ''}><summary>${title}</summary><div class="hsec-body">${body}</div></details>`;
   function render(h) {
@@ -1087,7 +1094,6 @@ if (window.stuckItems) renderMovement('stuck', window.stuckItems);
         <p class="meta" style="margin:6px 0 0;">Darker bars = after launch (from week of 27 Jul). "Cleared" = moved PCC → Done.</p>`)}
       ${sec('Time spent in PCC (cases cleared that week)', `<div style="height:280px;"><canvas id="hDays"></canvas></div>`)}
       ${sec('PCC by team (before → after)', teamTable(P.byTeam))}
-      ${scKpiTable(h.scKpi)}
 
       ${sec('External stuck cases — before vs after', `<div class="summary-bar">
         ${delta('Avg pool size', eb.avgPool, ea.avgPool, '', true)}
@@ -1110,12 +1116,13 @@ if (window.stuckItems) renderMovement('stuck', window.stuckItems);
         </ul>
       </details>`;
     document.querySelectorAll('#histBody details.hsec').forEach(d => d.addEventListener('toggle', () => Object.values(charts).forEach(c => c.resize())));
+    document.getElementById('scBody').innerHTML = scKpiTable(h.scKpi);
     chart('hPcc', P.weekly, { outLabel: 'Cleared (PCC → Done)' });
     chart('hExt', E.weekly, { outLabel: 'Left External (cleared)' });
     daysChart(P.weekly);
   }
   fetch('history.json?t=' + Date.now()).then(r => { if (!r.ok) throw new Error('history.json not found'); return r.json(); }).then(render)
-    .catch(e => { document.getElementById('histBody').innerHTML = '<p style="color:#e53e3e;padding:20px;">Could not load history: ' + e.message + '</p>'; });
+    .catch(e => { document.getElementById('histBody').innerHTML = document.getElementById('scBody').innerHTML = '<p style="color:#e53e3e;padding:20px;">Could not load history: ' + e.message + '</p>'; });
 })();
 </script>
 
