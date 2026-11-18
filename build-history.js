@@ -111,13 +111,13 @@ function replay(items, evs, now) {
     const check = (ts, cause) => {
       for (const k of ['pcc', 'ext']) {
         const mem = !dropped && (k === 'pcc' ? isPCC(st) : isExt(st));
-        if (mem && !cur[k]) cur[k] = { id: it.id, team, in: ts, out: null };
+        if (mem && !cur[k]) cur[k] = { id: it.id, sc: (sc || "Unassigned").split(",")[0].trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase()), team, in: ts, out: null };
         else if (!mem && cur[k]) { cur[k].out = ts; cur[k].cause = dropped ? 'dropped' : cause(k); out[k].push(cur[k]); cur[k] = null; }
       }
     };
     cur.pcc = null; cur.ext = null;
     // initial membership (entry time unknown = -Infinity)
-    for (const k of ['pcc', 'ext']) if (!dropped && (k === 'pcc' ? isPCC(st) : isExt(st))) cur[k] = { id: it.id, team, in: -Infinity, out: null };
+    for (const k of ['pcc', 'ext']) if (!dropped && (k === 'pcc' ? isPCC(st) : isExt(st))) cur[k] = { id: it.id, sc: (sc || "Unassigned").split(",")[0].trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase()), team, in: -Infinity, out: null };
     for (const e of seq) {
       if (e.drop) dropped = true; else st[e.col] = e.val;
       check(e.ts, k => k === 'pcc' ? (st.status91 === 'Done' ? 'done' : 'other')
@@ -223,6 +223,19 @@ function summarise(rows, from, to) {
   for (const i of done.sort((a, b) => b.out - a.out)) { if (seenC.has(i.id)) continue; seenC.add(i.id); const it = items.get(i.id); const b = nobBucket(it); bucket[b][0]++; bucket[b][1] += Number(it.c.numbers8) || 0; }
   result.sinceLaunch = { pccEntered: iv.pcc.filter(i => i.in >= L).length, pccClearedEvents: done.length, pccClearedCases: seenC.size, nob: bucket,
     daysMedian: med(done.filter(i => i.in !== -Infinity).map(i => (i.out - i.in) / 864e5)) };
+  // Per-SC PCC duration KPI: only cases that ENTERED PCC on/after 1 Jul 2026 (earlier entries not counted), up to 31 Dec 2026.
+  const K0 = Date.parse('2026-07-01T00:00:00+08:00'), K1 = Date.parse('2027-01-01T00:00:00+08:00');
+  const kp = iv.pcc.filter(i => i.in >= K0 && i.in < K1);
+  const by = {};
+  for (const i of kp) (by[i.sc] = by[i.sc] || []).push(i);
+  const scRows = Object.entries(by).map(([sc, a]) => {
+    const cl = a.filter(i => i.cause === 'done' && i.out !== null).map(i => (i.out - i.in) / 864e5);
+    const open = a.filter(i => i.out === null).map(i => (now - i.in) / 864e5);
+    return { sc, team: a[0].team, entered: a.length, cleared: cl.length, medianDays: med(cl), meanDays: mean(cl),
+      pctWithin7d: pct(cl, d => d <= 7), open: open.length, openMedianAge: med(open), otherExit: a.filter(i => i.out !== null && i.cause !== 'done').length };
+  }).sort((x, y) => (x.medianDays === null) - (y.medianDays === null) || x.medianDays - y.medianDays);
+  const allCl = kp.filter(i => i.cause === 'done' && i.out !== null).map(i => (i.out - i.in) / 864e5);
+  result.scKpi = { from: '2026-07-01', to: '2026-12-31', rule: 'Cases that entered PCC on/after 1 Jul 2026; duration = PCC entry to Done', teamMedianDays: med(allCl), cleared: allCl.length, entered: kp.length, rows: scRows };
   fs.writeFileSync(path.join(__dirname, 'history.json'), JSON.stringify(result));
   console.log(JSON.stringify({ check: chk, since: result.sinceLaunch, pccBefore: result.pcc.before, pccAfter: result.pcc.after, extBefore: result.ext.before, extAfter: result.ext.after, poolNow: [result.pcc.poolNow, result.ext.poolNow] }, null, 1));
 })().catch(e => { console.error(e); process.exit(1); });
