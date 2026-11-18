@@ -1042,14 +1042,14 @@ if (window.stuckItems) renderMovement('stuck', window.stuckItems);
       <td style="${td}font-weight:700;color:${col(r.avgAll)};">${dd(r.avgAll)}</td>
       <td style="${td}font-weight:700;color:${col(r.medianAll)};">${dd(r.medianAll)}</td>
       <td style="${td}font-weight:700;color:${col(r.medianSettled)};">${dd(r.medianSettled)}</td>
-      <td style="${td}">${r.settled}</td><td style="${td}">${r.open}</td><td style="${td}">${dd(r.openMedianAge)}</td></tr>`).join('');
+      <td style="${td}">${r.settled}</td><td style="${td}">${r.open}</td><td style="${td}">${dd(r.openMedianAge)}</td><td style="${td}font-weight:700;color:${r.open30 ? '#c53030' : '#718096'};">${r.open30}</td></tr>`).join('');
     return `<h4 style="color:#1a365d;margin:26px 0 4px;">PCC duration by SC — KPI period ${k.from} to ${k.to}</h4>
       <p class="meta" style="margin-bottom:8px;">Only cases whose Drawing status turned to PCC on or after 1 Jul 2026 are counted; earlier entries are ignored.
       <b>All PCC</b> = every such case: settled ones measured to Done, cases that left PCC another way measured to that exit, and cases still in PCC measured to today.
-      <b>Settled</b> = cases that reached Done. Team: average <b>${dd(T.avgAll)}</b>, median (all) <b>${dd(T.medianAll)}</b>, median (settled) <b>${dd(T.medianSettled)}</b>; ${T.entered} entered, ${T.settled} settled, ${T.open} still open.
+      <b>Settled</b> = cases that reached Done. Team: average <b>${dd(T.avgAll)}</b>, median (all) <b>${dd(T.medianAll)}</b>, median (settled) <b>${dd(T.medianSettled)}</b>; ${T.entered} entered, ${T.settled} settled, ${T.open} still open, of which <b style="color:#c53030;">${T.open30}</b> for more than 30 days.
       Sorted by median (all), fastest first. * = fewer than 5 cases.</p>
       <table style="width:100%;border-collapse:collapse;font-size:0.85em;background:#fff;border:1px solid #e2e8f0;">
-      <thead><tr style="background:#edf2f7;text-align:left;"><th style="padding:8px;">SC</th><th>Team</th><th>Entered PCC</th><th>Average (all)</th><th>Median (all PCC)</th><th>Median (settled)</th><th>Settled</th><th>Still in PCC</th><th>Median age (open)</th></tr></thead>
+      <thead><tr style="background:#edf2f7;text-align:left;"><th style="padding:8px;">SC</th><th>Team</th><th>Entered PCC</th><th>Average (all)</th><th>Median (all PCC)</th><th>Median (settled)</th><th>Settled</th><th>Still in PCC</th><th>Median age (open)</th><th>Open &gt;30 d</th></tr></thead>
       <tbody>${rows}</tbody></table>`;
   }
   function render(h) {
