@@ -234,10 +234,10 @@ function summarise(rows, from, to) {
     const cl = a.filter(i => i.cause === 'done' && i.out !== null).map(dur);
     const open = a.filter(i => i.out === null).map(dur);
     return { sc, team: a[0].team, entered: a.length, settled: cl.length, open: open.length, otherExit: a.length - cl.length - open.length,
-      avgAll: mean(all), medianAll: med(all), medianSettled: med(cl), openMedianAge: med(open), open30: open.filter(d => d > 30).length, pctSettled7d: pct(cl, d => d <= 7) };
+      avgAll: mean(all), medianAll: med(all), avgSettled: mean(cl), medianSettled: med(cl), openMedianAge: med(open), open30: open.filter(d => d > 30).length, pctSettled7d: pct(cl, d => d <= 7) };
   }).sort((x, y) => x.medianAll - y.medianAll);
   const allD = kp.map(dur), allCl = kp.filter(i => i.cause === 'done' && i.out !== null).map(dur);
-  result.scKpi = { from: '2026-07-01', to: '2026-12-31', rule: 'Cases that entered PCC on/after 1 Jul 2026. All = settled + other exits + still open (open measured to today). Settled = PCC to Done.', team: { avgAll: mean(allD), medianAll: med(allD), medianSettled: med(allCl), entered: kp.length, settled: allCl.length, open: kp.filter(i => i.out === null).length, open30: kp.filter(i => i.out === null && dur(i) > 30).length }, rows: scRows };
+  result.scKpi = { from: '2026-07-01', to: '2026-12-31', rule: 'Cases that entered PCC on/after 1 Jul 2026. All = settled + other exits + still open (open measured to today). Settled = PCC to Done.', team: { avgAll: mean(allD), medianAll: med(allD), avgSettled: mean(allCl), medianSettled: med(allCl), entered: kp.length, settled: allCl.length, open: kp.filter(i => i.out === null).length, open30: kp.filter(i => i.out === null && dur(i) > 30).length }, rows: scRows };
   fs.writeFileSync(path.join(__dirname, 'history.json'), JSON.stringify(result));
   console.log(JSON.stringify({ check: chk, since: result.sinceLaunch, pccBefore: result.pcc.before, pccAfter: result.pcc.after, extBefore: result.ext.before, extAfter: result.ext.after, poolNow: [result.pcc.poolNow, result.ext.poolNow] }, null, 1));
 })().catch(e => { console.error(e); process.exit(1); });
